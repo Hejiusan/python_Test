@@ -3,7 +3,9 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
+from sklearn.metrics import confusion_matrix
 import pandas as pd
+import seaborn
 from hrvanalysis import remove_ectopic_beats
 from hrvanalysis import interpolate_nan_values
 from hrvanalysis import remove_outliers, extract_features
@@ -33,6 +35,17 @@ def flatten_nested_dict(d):
         for inner_key, value in inner_dict.items():
             flat_dict[f'{outer_key}_{inner_key}'] = value
     return flat_dict
+
+
+def plotHeatMap(Y_test, Y_pred):
+    con_mat = confusion_matrix(Y_test, Y_pred)
+    # 绘图
+    plt.figure(figsize=(4, 5))
+    seaborn.heatmap(con_mat, annot=True, fmt='.20g', cmap='Blues')
+    plt.ylim(0, 5)
+    plt.xlabel('Predicted labels')
+    plt.ylabel('True labels')
+    plt.show()
 
 def getDataSet(number):
     # 读取心电数据记录
@@ -103,16 +116,29 @@ X = df.drop('label', axis=1)  # 特征
 y = df['label']  # 标签
 
 # 数据分割
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_test, Y_train, Y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# 创建一个随机森林分类器的实例
+randomforest = RandomForestClassifier(random_state=42, n_estimators=120)
 
-# 创建随机森林模型
-clf = RandomForestClassifier(random_state=42, n_estimators=120)
+# 利用训练集样本对分类器模型进行训练
+randomforest.fit(X_train, Y_train)
+expected = Y_test  # 测试样本的期望输出
+predicted = randomforest.predict(X_test)  # 测试样本预测
 
-# 训练模型
-clf.fit(X_train, y_train)
+# 画出训练后模型的混淆矩阵，方便观察训练的效果
+plotHeatMap(Y_test,predicted)
 
-# 预测测试集
-y_pred = clf.predict(X_test)
+accuracy = metrics.accuracy_score(expected, predicted)  # 求精度
+print("Accuracy: %.2f%%" % (accuracy * 100.0))
+
+# # 创建随机森林模型
+# clf = RandomForestClassifier(random_state=42, n_estimators=120)
+#
+# # 训练模型
+# clf.fit(X_train, y_train)
+#
+# # 预测测试集
+# y_pred = clf.predict(X_test)
 
 # 评估模型
 accuracy = accuracy_score(y_test, y_pred)
