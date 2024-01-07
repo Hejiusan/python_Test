@@ -1,8 +1,10 @@
 import json
+import os
 
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
+from sklearn import metrics
 from sklearn.metrics import confusion_matrix
 import pandas as pd
 import seaborn
@@ -49,9 +51,9 @@ def plotHeatMap(Y_test, Y_pred):
 
 def getDataSet(number):
     # 读取心电数据记录
-    print("正在读取 " + number + " 号心电数据...")
+    print("正在读取 " + number)
     # 读取数据
-    record = pd.read_csv('hrv-5min/' + number + '.csv')
+    record = pd.read_csv('hrv-5min/' + number )
     rr_intervals_without_outliers = remove_outliers(rr_intervals=record['rrInterval'],low_rri=300, high_rri=2000)
     interpolated_rr_intervals = interpolate_nan_values(rr_intervals=rr_intervals_without_outliers,interpolation_method="linear")
     # 删除相邻的两个 RRI 值之间的差异大于 20% 的异常搏动
@@ -76,7 +78,7 @@ def getDataSet(number):
     merged_data = {
         "time_domain": time_domain_features,
         "frequency_domain": frequency_domain_features,
-        "poincare_plot": poincare_plot_features
+        # "poincare_plot": poincare_plot_features
     }
 
     return merged_data
@@ -93,21 +95,19 @@ def getDataSet(number):
     #     json_file.write(json_data)
     # print(f"JSON数据已保存到文件：{file_path}")
 
+folder_path = 'hrv-5min'
+file_names = [file for file in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, file))]
 
-numberSet = ['001_1_s', '001_2_s', '002_1_s', '002_2_s', '003_1_s', '003_2_s', '004_1_s', '005_1_s', '005_2_s', '006_1_s',
-             '007_1_s', '007_2_s', '008_1_s', '010_1_s', '011_1_s', '012_1_s', '013_1_s', '014_1_s', '015_1_s', '016_1_s',
-             '017_1_s', '019_1_s10', '020_1_s5', '022_1_s5', '023_1_s10', '024_1_s10', '026_1_s10', '027_1_s10', '028_1_s5',
-             '029_1_s10', '030_1_s10']
 
 # 初始化一个空的DataFrame
 df = pd.DataFrame()
-for n in numberSet:
+for n in file_names:
     flat_dict = flatten_nested_dict(getDataSet(n))
     df = df._append(flat_dict, ignore_index=True)
 
 df['label'] = [3,3,3,3,3,3,1,1,1,3,
-               3,3,1,1,1,3,2,1,1,1,
-               1,1,1,3,1,1,1,2,3,1,3]
+               3,3,1,1,1,3,3,1,1,1,
+               1,1,1,3,1,1,1,3,3,1,3]
 
 # print(df)
 
@@ -141,6 +141,6 @@ print("Accuracy: %.2f%%" % (accuracy * 100.0))
 # y_pred = clf.predict(X_test)
 
 # 评估模型
-accuracy = accuracy_score(y_test, y_pred)
-print("Accuracy:", accuracy)
-print(classification_report(y_test, y_pred))
+# accuracy = accuracy_score(Y_test, y_pred)
+# print("Accuracy:", accuracy)
+# print(classification_report(y_test, y_pred))
