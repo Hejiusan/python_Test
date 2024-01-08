@@ -97,8 +97,8 @@ def cal_xsb(x,xst):
 # plt.grid(True)
 # plt.show()
 
-x = 86.52
-y = 162.32
+x = 800
+y = 1200
 # xbar: 82.90084045573411 xaar: 42.81664917675744
 # 62.858744816245775
 xbar = cal_xbar(x)

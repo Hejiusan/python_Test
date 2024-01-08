@@ -15,8 +15,9 @@ from scipy.interpolate import PchipInterpolator
 from hrvanalysis import get_time_domain_features
 from hrvanalysis import get_frequency_domain_features
 from hrvanalysis import get_poincare_plot_features
+import xgboost as xgb
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
 from sklearn.metrics import accuracy_score, classification_report
 
 import matplotlib.pyplot as plt
@@ -49,11 +50,8 @@ def plotHeatMap(Y_test, Y_pred):
     plt.ylabel('True labels')
     plt.show()
 
-def getDataSet(number):
-    # 读取心电数据记录
-    print("正在读取 " + number)
-    # 读取数据
-    record = pd.read_csv('hrv-5min/' + number )
+def getDataSet(record):
+
     rr_intervals_without_outliers = remove_outliers(rr_intervals=record['rrInterval'],low_rri=300, high_rri=2000)
     interpolated_rr_intervals = interpolate_nan_values(rr_intervals=rr_intervals_without_outliers,interpolation_method="linear")
     # 删除相邻的两个 RRI 值之间的差异大于 20% 的异常搏动
@@ -78,7 +76,7 @@ def getDataSet(number):
     merged_data = {
         "time_domain": time_domain_features,
         "frequency_domain": frequency_domain_features,
-        # "poincare_plot": poincare_plot_features
+        "poincare_plot": poincare_plot_features
     }
 
     return merged_data
@@ -102,12 +100,38 @@ file_names = [file for file in os.listdir(folder_path) if os.path.isfile(os.path
 # 初始化一个空的DataFrame
 df = pd.DataFrame()
 for n in file_names:
-    flat_dict = flatten_nested_dict(getDataSet(n))
+    # 读取心电数据记录
+    print("正在读取 " + n)
+    # 读取数据
+    record = pd.read_csv('hrv-5min/' + n)
+    flat_dict = flatten_nested_dict(getDataSet(record))
+    flat_dict['label'] = 1
     df = df._append(flat_dict, ignore_index=True)
 
-df['label'] = [3,3,3,3,3,3,1,1,1,3,
-               3,3,1,1,1,3,3,1,1,1,
-               1,1,1,3,1,1,1,3,3,1,3]
+
+# df_102 = pd.read_csv('860911061000102-2023-09-02.csv')
+df_102 = pd.read_csv('860911061000102-2023-09-02.csv')
+# 将时间戳转换为日期时间
+df_102['datetime'] = pd.to_datetime(df_102['timestamp'], unit='ms')
+
+# 设置五分钟间隔分组
+df_grouped = df_102.groupby(pd.Grouper(key='datetime', freq='5Min'))
+
+# 对每个分组进行处理
+total_groups = len(list(df_grouped))
+current_group = 0
+for name, group in df_grouped:
+    current_group += 1
+    if current_group == 1 or current_group == total_groups:
+        continue  # 跳过第一个和最后一个分组
+    # 这里可以对每个五分钟内的数据进行处理
+    if (group.size == 0):
+        continue
+    flat_dict = flatten_nested_dict(getDataSet(group))
+    flat_dict['label'] = 0
+    df = df._append(flat_dict, ignore_index=True)
+
+
 
 # print(df)
 
@@ -116,20 +140,20 @@ X = df.drop('label', axis=1)  # 特征
 y = df['label']  # 标签
 
 # 数据分割
-X_train, X_test, Y_train, Y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-# 创建一个随机森林分类器的实例
-randomforest = RandomForestClassifier(random_state=42, n_estimators=120)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# 创建一个XGBoost分类器的实例
+model = xgb.XGBClassifier()
+model.fit(X_train, y_train)
 
 # 利用训练集样本对分类器模型进行训练
-randomforest.fit(X_train, Y_train)
-expected = Y_test  # 测试样本的期望输出
-predicted = randomforest.predict(X_test)  # 测试样本预测
+y_pred = model.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+print("Accuracy: %.2f%%" % (accuracy * 100.0))
+
 
 # 画出训练后模型的混淆矩阵，方便观察训练的效果
-plotHeatMap(Y_test,predicted)
+plotHeatMap(y_test,y_pred)
 
-accuracy = metrics.accuracy_score(expected, predicted)  # 求精度
-print("Accuracy: %.2f%%" % (accuracy * 100.0))
 
 # # 创建随机森林模型
 # clf = RandomForestClassifier(random_state=42, n_estimators=120)
