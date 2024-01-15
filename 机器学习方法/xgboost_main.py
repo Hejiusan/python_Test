@@ -19,6 +19,8 @@ import xgboost as xgb
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import accuracy_score, classification_report
+from sklearn.model_selection import LeaveOneOut
+from sklearn.metrics import accuracy_score
 
 import matplotlib.pyplot as plt
 
@@ -139,6 +141,25 @@ for name, group in df_grouped:
 X = df.drop('label', axis=1)  # 特征
 y = df['label']  # 标签
 
+## 初始化留一交叉验证
+loo = LeaveOneOut()
+# 留一交叉验证
+accuracies = []
+for train_index, test_index in loo.split(X):
+    X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+    y_train, y_test = y.iloc[train_index], y.iloc[test_index]
+    model = xgb.XGBClassifier()
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    accuracies.append(accuracy_score(y_test, y_pred))
+
+
+average_accuracy = np.mean(accuracies)
+print("Average Accuracy: %.2f%%" % (average_accuracy * 100.0))
+
+
+
+'''
 # 数据分割
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 # 创建一个XGBoost分类器的实例
@@ -153,6 +174,8 @@ print("Accuracy: %.2f%%" % (accuracy * 100.0))
 
 # 画出训练后模型的混淆矩阵，方便观察训练的效果
 plotHeatMap(y_test,y_pred)
+'''
+
 
 
 # # 创建随机森林模型
